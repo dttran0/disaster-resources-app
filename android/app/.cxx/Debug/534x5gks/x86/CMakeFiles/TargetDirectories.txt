@@ -1,0 +1,2 @@
+C:/Users/falak/Downloads/Repos/disaster-resources-app/android/app/.cxx/Debug/534x5gks/x86/CMakeFiles/edit_cache.dir
+C:/Users/falak/Downloads/Repos/disaster-resources-app/android/app/.cxx/Debug/534x5gks/x86/CMakeFiles/rebuild_cache.dir
