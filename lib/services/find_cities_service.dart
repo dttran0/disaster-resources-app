@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 class FindCitiesService {
   Future<List<String>> getCitiesWithin5Miles(double lat, double lon) async {
-    int radiusMeters = 8047;
+    int radiusMeters = 16093;
     String url =
         "https://overpass-api.de/api/interpreter?data=[out:json];node[place=city](around:$radiusMeters,$lat,$lon);out;";
 

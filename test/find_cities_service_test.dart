@@ -17,6 +17,15 @@ void main() {
       expect(cities, contains("San Francisco"));
     });
 
+    test('getCitiesWithin5Miles returns expected cities for Costa Mesa and Irvine', () async {
+      double lat = 33.672369;
+      double lon = -117.868663;
+      final cities = await findCitiesService.getCitiesWithin5Miles(lat, lon);
+      expect(cities, isA<List<String>>());
+      expect(cities, contains("Costa Mesa"));
+      expect(cities, contains("Irvine"));
+    });
+
     test('getCitiesWithin5Miles returns expected cities for New York', () async {
       double lat = 40.7128;
       double lon = -74.0060;
