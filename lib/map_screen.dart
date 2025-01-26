@@ -10,6 +10,7 @@ import 'hospital.dart';
 import 'named_marker.dart';
 import 'affectedareawidget.dart';
 import 'resourcelist.dart';
+import 'services/firebase_service.dart';
 
 //volunteer UI
 class VolunteerPage extends StatefulWidget {
@@ -20,6 +21,17 @@ class VolunteerPage extends StatefulWidget {
 class _VolunteerPageState extends State<VolunteerPage> {
   String? _selectedOption;
   String? _name;
+  int _userPoints = 0;
+
+  final FirebaseService _firebaseService = FirebaseService();
+  Future<void> _fetchUserPoints() async {
+    if (_name != null && _name!.isNotEmpty) {
+      final points = await _firebaseService.getUserPoints(_name!);
+      setState(() {
+        _userPoints = points;
+      });
+    }
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -57,7 +69,7 @@ class _VolunteerPageState extends State<VolunteerPage> {
             SizedBox(height: 20),
             DropdownButtonFormField<String>(
               value: _selectedOption,
-              items: ['Food', 'Water', 'Clothing']
+              items: ['Food', 'Water', 'Clothing', 'Blankets', 'Medical-Aid', 'Hygiene Supplies', 'Shelter Items']
                   .map((option) => DropdownMenuItem(
                 value: option,
                 child: Text(option),
@@ -75,18 +87,31 @@ class _VolunteerPageState extends State<VolunteerPage> {
             ),
             SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () {
-                if (_selectedOption != null) {
-                  // Handle the selected option here
+              onPressed: () async {
+                if (_name != null && _selectedOption != null) {
+                  await _firebaseService.updateUserPoints(_name!, 10); // Add points
+                  final updatedPoints = await _firebaseService.getUserPoints(_name!);
+
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('You selected $_selectedOption')),
+                    SnackBar(
+                      content: Text(
+                          'Thank you, $_name! You now have $updatedPoints points.'),
+                    ),
+                  );
+
+                  setState(() {
+                    _userPoints = updatedPoints; // Update the points in the UI
+                  });
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Please enter your name and select an option.')),
                   );
                 }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Color(0xFF2F8D46),
               ),
-              child: Text('Submit'),
+              child: Text('Submit', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -234,7 +259,7 @@ class _MapScreenState extends State<MapScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Color(0xFF2F8D46),
                               ),
-                              child: Text('Volunteer'),
+                              child: Text('Volunteer', style: TextStyle(color: Colors.white)),
                             ),
                         ],
                       ),
