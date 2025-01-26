@@ -210,25 +210,31 @@ class _MapScreenState extends State<MapScreen> {
         ));
 
         // Add an invisible Marker at the same location to detect taps
-        _foodBankMarkers.add(Marker(
-          point: center,
-          width: 40, // Use a small size for the invisible marker
-          height: 40,
-          builder: (ctx) => GestureDetector(
-            onTap: () {
-              setState(() {
-                _selectedMarkerLocation = center;
-                _selectedMarkerName = event; // Show the disaster event name
-                _selectedMarkerDistance = Distance().as(LengthUnit.Kilometer, _center, center);
-              });
-            },
-            child: Container(
-              width: 0, // Make the marker invisible
-              height: 0, // Make the marker invisible
-            ),
-          ),
-        ));
+        // _foodBankMarkers.add(Marker(
+        //   point: center,
+        //   width: 40, // Use a small size for the invisible marker
+        //   height: 40,
+        //   builder: (ctx) => GestureDetector(
+        //     onTap: () {
+        //       setState(() {
+        //         _selectedMarkerLocation = center;
+        //         _selectedMarkerName = event; // Show the disaster event name
+        //         _selectedMarkerDistance = Distance().as(LengthUnit.Kilometer, _center, center);
+        //       });
+        //     },
+        //     child: Container(
+        //       width: 0, // Make the marker invisible
+        //       height: 0, // Make the marker invisible
+        //     ),
+        //   ),
+        // ));
+        NamedMarker disasterMarker = NamedMarker(
+          name: "Disaster: $event",  // Set the disaster event name
+          point: center, // Set the center of the disaster area
+        );
 
+        // Add the invisible marker to the _foodBankMarkers list
+        _foodBankMarkers.add(_createMarker(disasterMarker));
         index += 1;
       }
 
@@ -263,13 +269,16 @@ class _MapScreenState extends State<MapScreen> {
             },
             child: Icon(
               Icons.location_on,
-              color: namedMarker.name.contains('Hospital') ? Colors.red : Colors
+              color: namedMarker.name.contains('Hospital') ? Colors.red : namedMarker.name.contains('Disaster') ? Colors.orange :
+              Colors
                   .blue,
               size: 30,
             ),
           ),
     );
   }
+
+
 
   LatLng _calculateCenter(List<LatLng> coords) {
     double latSum = 0.0;
