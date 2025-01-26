@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
-import 'dart:math'; // For random data generation
+import 'hospital.dart';
+import 'food_bank.dart';
 
 class ResourceListScreen extends StatefulWidget {
+  final double latitude;
+  final double longitude;
+
+  ResourceListScreen({required this.latitude, required this.longitude});
+
   @override
   _ResourceListScreenState createState() => _ResourceListScreenState();
 }
@@ -17,29 +23,45 @@ class _ResourceListScreenState extends State<ResourceListScreen> {
   }
 
   Future<void> fetchItems() async {
-    // Simulate a delay to mimic an API call
-    await Future.delayed(Duration(seconds: 2));
+    try {
+      // Use the latitude and longitude passed to the screen
+      final hospitalService = HospitalService();
+      final foodBankService = FoodBankService();
 
-    // Generate mock data for hospitals and food banks
-    final random = Random();
-    final mockItems = List.generate(10, (index) {
-      final isHospital =
-      random.nextBool(); // Randomly decide if it's a hospital
-      return {
-        'name': isHospital
-            ? 'Hospital ${random.nextInt(100)}'
-            : 'Food Bank ${random.nextInt(100)}',
-        'address':
-        '${random.nextInt(9999)} Main St, City ${random.nextInt(50)}',
-        'type': isHospital ? 'hospital' : 'food_bank', // Type field
-      };
-    });
+      final hospitals = await hospitalService.fetchNearbyHospitals(
+        widget.latitude,
+        widget.longitude,
+      );
 
-    // Update the state with mock data
-    setState(() {
-      items = mockItems;
-      isLoading = false;
-    });
+      final foodBanks = await foodBankService.fetchNearbyFoodBanks(
+        widget.latitude,
+        widget.longitude,
+      );
+
+      // Combine hospitals and food banks into a unified list
+      final formattedItems = [
+        ...hospitals.map((hospital) => {
+          'name': hospital.name,
+          'address': hospital.address,
+          'type': 'hospital',
+        }),
+        ...foodBanks.map((foodBank) => {
+          'name': foodBank.name,
+          'address': foodBank.address,
+          'type': 'food_bank',
+        }),
+      ];
+
+      setState(() {
+        items = formattedItems;
+        isLoading = false;
+      });
+    } catch (e) {
+      print('Error fetching resources: $e');
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
   @override
@@ -69,30 +91,36 @@ class _ResourceListScreenState extends State<ResourceListScreen> {
           style: TextStyle(fontSize: 18),
         ),
       )
-          : ListView.builder(
-        itemCount: items.length,
-        itemBuilder: (context, index) {
-          final item = items[index];
-          final isHospital = item['type'] == 'hospital';
+          : Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              itemCount: items.length,
+              itemBuilder: (context, index) {
+                final item = items[index];
+                final isHospital = item['type'] == 'hospital';
 
-          return Card(
-            margin: EdgeInsets.symmetric(
-                vertical: 8, horizontal: 16),
-            child: ListTile(
-              leading: Icon(
-                isHospital
-                    ? Icons.local_hospital
-                    : Icons.restaurant,
-                color: isHospital ? Colors.red : Colors.blue,
-              ),
-              title: Text(
-                item['name']!,
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              subtitle: Text(item['address']!),
+                return Card(
+                  margin: EdgeInsets.symmetric(
+                      vertical: 8, horizontal: 16),
+                  child: ListTile(
+                    leading: Icon(
+                      isHospital
+                          ? Icons.local_hospital
+                          : Icons.restaurant,
+                      color: isHospital ? Colors.red : Colors.blue,
+                    ),
+                    title: Text(
+                      item['name']!,
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text(item['address']!),
+                  ),
+                );
+              },
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }

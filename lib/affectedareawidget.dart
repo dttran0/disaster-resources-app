@@ -14,8 +14,8 @@ class AffectedAreaWidget extends StatelessWidget {
         width: double.infinity,
         padding: EdgeInsets.all(16.0),
         child: Text(
-          "You are in an affected area. Click here to find safety now.",
-          style: TextStyle(color: Color(0xFFFFFFFF), fontSize: 16),
+          "Your area is affected. Click here for resources.",
+          style: TextStyle(color: Color(0xFFFFFFFF), fontSize: 16, fontWeight: FontWeight.bold),
           textAlign: TextAlign.center,
         ),
       ),

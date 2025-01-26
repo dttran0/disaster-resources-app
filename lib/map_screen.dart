@@ -8,10 +8,12 @@ import 'hospital.dart';
 import 'named_marker.dart';
 import 'resourcelist.dart'; // Import ResourceListScreen
 
+
 class MapScreen extends StatefulWidget {
   @override
   _MapScreenState createState() => _MapScreenState();
 }
+
 
 class _MapScreenState extends State<MapScreen> {
   late final MapController _mapController;
@@ -20,16 +22,20 @@ class _MapScreenState extends State<MapScreen> {
   List<Marker> _foodBankMarkers = []; // List of Markers for food banks
   List<Marker> _hospitalMarkers = []; // List of Markers for hospitals
 
+
   // Info window variables
   LatLng? _selectedMarkerLocation;
   String? _selectedMarkerName;
   double? _selectedMarkerDistance;
+  String? _selectedMarkerAddress;
+
 
   @override
   void initState() {
     super.initState();
     _mapController = MapController();
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -53,8 +59,14 @@ class _MapScreenState extends State<MapScreen> {
               // Navigate to ResourceListScreen
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => ResourceListScreen()),
+                MaterialPageRoute(
+                  builder: (context) => ResourceListScreen(
+                    latitude: _center.latitude,
+                    longitude: _center.longitude,
+                  ),
+                ),
               );
+
             },
           ),
           // Expanded widget for the map
@@ -106,6 +118,10 @@ class _MapScreenState extends State<MapScreen> {
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                           Text(
+                            _selectedMarkerAddress ?? '',
+                            style: TextStyle(color: Colors.grey[600]),
+                          ),
+                          Text(
                             '${_selectedMarkerDistance?.toStringAsFixed(2)} km away',
                             style: TextStyle(color: Colors.grey[600]),
                           ),
@@ -134,7 +150,7 @@ class _MapScreenState extends State<MapScreen> {
             tooltip: 'Zoom Out',
             backgroundColor: Color(0xFF333333),
             heroTag: 'zoomOut',
-            child: Icon(Icons.zoom_in, color: Color(0xFFFFFFFF)),
+            child: Icon(Icons.zoom_out, color: Color(0xFFFFFFFF)),
           ),
           SizedBox(height: 10),
           FloatingActionButton(
@@ -142,12 +158,13 @@ class _MapScreenState extends State<MapScreen> {
             tooltip: 'Get Location',
             backgroundColor: Color(0xFF333333),
             heroTag: 'getLocation',
-            child: Icon(Icons.zoom_in, color: Color(0xFFFFFFFF)),
+            child: Icon(Icons.my_location, color: Color(0xFFFFFFFF)),
           ),
         ],
       ),
     );
   }
+
 
   void _zoomIn() {
     setState(() {
@@ -156,12 +173,14 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
+
   void _zoomOut() {
     setState(() {
       _currentZoom = (_currentZoom - 1).clamp(0.0, 18.0);
       _mapController.move(_center, _currentZoom);
     });
   }
+
 
   Future<void> _getCurrentLocation() async {
     var location = await LocationService().getLocation();
@@ -170,6 +189,7 @@ class _MapScreenState extends State<MapScreen> {
         _center = location;
         _mapController.move(_center, _currentZoom);
       });
+
 
       var foodBanks = await FoodBankService().fetchNearbyFoodBanks(
         location.latitude,
@@ -180,12 +200,14 @@ class _MapScreenState extends State<MapScreen> {
         location.longitude,
       );
 
+
       setState(() {
         _foodBankMarkers = foodBanks.map((marker) => _createMarker(marker)).toList();
         _hospitalMarkers = hospitals.map((marker) => _createMarker(marker)).toList();
       });
     }
   }
+
 
   Marker _createMarker(NamedMarker namedMarker) {
     return Marker(
@@ -202,6 +224,7 @@ class _MapScreenState extends State<MapScreen> {
               _center,
               namedMarker.point,
             );
+            _selectedMarkerAddress = namedMarker.address;
           });
         },
         child: Icon(
@@ -213,3 +236,22 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
