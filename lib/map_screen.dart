@@ -1,40 +1,93 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'user_location.dart'; // Import your location service
-import 'food_bank.dart'; // Import the FoodBankService
+import 'user_location.dart';
+import 'food_bank.dart';
 import 'hospital.dart';
 import 'named_marker.dart';
-import 'resourcelist.dart'; // Import ResourceListScreen
+import 'resourcelist.dart';
 import 'affectedareawidget.dart';
-//import 'package:flutter_map_circle_marker/flutter_map_circle_marker.dart'; // Import the circle marker plugin
 import 'services/nws_service.dart';
-import 'services/find_cities_service.dart'; // Ensure this service is
-import 'hospital.dart';
-import 'named_marker.dart';
+import 'services/find_cities_service.dart';
 
 class MapScreen extends StatefulWidget {
   @override
   _MapScreenState createState() => _MapScreenState();
 }
 
-
 class _MapScreenState extends State<MapScreen> {
   late final MapController _mapController;
-  LatLng _center = LatLng(34.0549, -118.2426); // Initial center (LA, CA)
-  double _currentZoom = 13.0; // Initial zoom level
-  //List<CircleMarker> _foodBankMarkers = []; // List of CircleMarkers
-  //List<CircleMarker> disasterMarkers = [];
-  //List<Polygon> disasterPolygons = [];  // List to store polygons
+  LatLng _center = LatLng(34.0549, -118.2426);
+  LatLng _initialCenter = LatLng(34.0549, -118.2426);
+  double _currentZoom = 13.0;
   List<CircleMarker> disasterCircles = [];
-  List<Marker> _foodBankMarkers = []; // List of Markers for food banks
-  List<Marker> _hospitalMarkers = []; // List of Markers for hospitals
+  List<Marker> _foodBankMarkers = [];
+  List<Marker> _hospitalMarkers = [];
 
-  // Info window variables
   LatLng? _selectedMarkerLocation;
   String? _selectedMarkerName;
   double? _selectedMarkerDistance;
-  String? _selectedMarkerAddress;
+  List<String>? _selectedMarkerResources;
+  List<LatLng> nearbyDisasters = [];
+
+  Map<String, List<String>> disasterResources = {
+    'Cold-Weather': [
+      'Blankets',
+      'Warm clothing',
+      'Heaters',
+      'Emergency shelters',
+      'Food (non-perishable)',
+      'Water (non-perishable)',
+      'First aid kits',
+    ],
+    'Hot-Weather': [
+      'Water (for drinking and cooling)',
+      'Fire extinguishers',
+      'Emergency shelters (cooling centers)',
+      'First aid kits (for burns, dehydration)',
+      'Non-perishable food',
+      'Fire safety equipment',
+    ],
+    'Flooding': [
+      'Sandbags',
+      'Life vests',
+      'Emergency shelters (safe from flooding)',
+      'Water (non-contaminated)',
+      'First aid kits',
+      'Non-perishable food',
+      'Flashlights',
+    ],
+    'Hurricane': [
+      'Emergency shelters (hurricane-resistant)',
+      'First aid kits',
+      'Non-perishable food',
+      'Water (non-contaminated)',
+      'Flashlights',
+      'Sandbags',
+      'Battery-powered radios',
+      'Extra clothing',
+      'Emergency kits for evacuation',
+    ],
+  };
+
+  String getDisasterGroup(String disasterType) {
+    if (['Winter Storm Watch', 'Blizzard Warning', 'Winter Storm Warning', 'Ice Storm Warning'].contains(disasterType)) {
+      return 'Cold-Weather';
+    } else if (['Fire Weather Watch', 'Red Flag Warning'].contains(disasterType)) {
+      return 'Hot-Weather';
+    } else if ([
+      'Coastal Flood Watch', 'Coastal Flood Warning', 'Coastal Flood Advisory',
+      'Flood Watch', 'Flash Flood Warning', 'Flood Warning',
+      'River Flood Watch', 'River Flood Warning'
+    ].contains(disasterType)) {
+      return 'Flooding';
+    } else if (['Hurricane Watch', 'Hurricane Warning'].contains(disasterType)) {
+      return 'Hurricane';
+    } else {
+      return 'Unknown';  // for unexpected disaster types
+    }
+  }
+
 
 
   @override
@@ -43,7 +96,6 @@ class _MapScreenState extends State<MapScreen> {
     _mapController = MapController();
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -51,7 +103,7 @@ class _MapScreenState extends State<MapScreen> {
         title: Text(
           'BeaconAid',
           style: TextStyle(
-            color: Color(0xFFFFFFFF),
+            color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -60,125 +112,136 @@ class _MapScreenState extends State<MapScreen> {
       ),
       body: Column(
         children: [
-          // Add the AffectedAreaWidget
           AffectedAreaWidget(
+            isSafe: nearbyDisasters.isEmpty,
             onTap: () {
-              // Navigate to ResourceListScreen
               Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => ResourceListScreen(
-                    latitude: _center.latitude,
-                    longitude: _center.longitude,
+                    latitude: _initialCenter.latitude,
+                    longitude: _initialCenter.longitude,
                   ),
                 ),
               );
-
             },
           ),
-          // Expanded widget for the map
-          Expanded(
-            child: Column(
-              children: [
-                FlutterMap(
-                  mapController: _mapController,
-                  options: MapOptions(
-                    center: _center,
-                    zoom: _currentZoom,
-                    onTap: (_, __) {
-                      setState(() {
-                        _selectedMarkerLocation = null; // Dismiss the info window
-                      });
-                    },
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                      subdomains: ['a', 'b', 'c'],
-                    ),
-                    MarkerLayer(
-                      markers: [..._foodBankMarkers, ..._hospitalMarkers],
-                    ),
-                  ],
-                ),
-                FlutterMap(
-                  mapController: _mapController,
-                  options: MapOptions(
-                      center: _center,
-                      zoom: _currentZoom,
-                      onTap: (_, __) {
-                        setState(() {
-                          _selectedMarkerLocation = null;
-                        });
-                      },
-                      onPositionChanged: (position, hasGesture) {
-                        if (hasGesture && position.center != null) {
-                          setState(() {
-                            _center = position.center ?? _center;
-                          });
-                        }
-                      }
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                      subdomains: ['a', 'b', 'c'],
-                    ),
-                    // Use CircleMarkerLayerPlugin to display CircleMarkers
-
-                    CircleLayer(
-                      circles: disasterCircles,
-                    ),
-                    MarkerLayer(
-                        markers: [..._foodBankMarkers, ..._hospitalMarkers]
-                    ),
-                  ],
-                ),
-                if (_selectedMarkerLocation != null)
-                  Positioned(
-                    bottom: 100,
-                    left: MediaQuery.of(context).size.width * 0.2,
-                    child: Container(
-                      padding: EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 5,
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
+          Flexible(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SizedBox(
+                  height: constraints.maxHeight,
+                  child: Stack(
+                    children: [
+                      FlutterMap(
+                        mapController: _mapController,
+                        options: MapOptions(
+                            center: _center,
+                            zoom: _currentZoom,
+                            onTap: (_, __) {
+                              setState(() {
+                                _selectedMarkerLocation = null;
+                              });
+                            },
+                            onPositionChanged: (position, hasGesture) {
+                              if (hasGesture && position.center != null) {
+                                setState(() {
+                                  _center = position.center ?? _center;
+                                });
+                              }
+                            }
+                        ),
                         children: [
-                          Text(
-                            _selectedMarkerName ?? '',
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                          TileLayer(
+                            urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                            subdomains: ['a', 'b', 'c'],
                           ),
-                          Text(
-                            '${_selectedMarkerDistance?.toStringAsFixed(2)} km away',
-                            style: TextStyle(color: Colors.grey[600]),
+                          CircleLayer(
+                            circles: disasterCircles,
+                          ),
+                          MarkerLayer(
+                              markers: [..._foodBankMarkers, ..._hospitalMarkers]
                           ),
                         ],
                       ),
-                    ),
+                      if (_selectedMarkerLocation != null)
+                        Positioned(
+                          bottom: 20,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child: Container(
+                              padding: EdgeInsets.all(10),
+                              margin: EdgeInsets.symmetric(horizontal: 20),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    blurRadius: 5,
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // Display disaster name
+                                  Text(
+                                    _selectedMarkerName ?? '',
+                                    style: TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  // Display distance
+                                  Text(
+                                    '${_selectedMarkerDistance?.toStringAsFixed(2)} km away',
+                                    style: TextStyle(color: Colors.grey[600]),
+                                  ),
+                                  // Conditionally display resources if not empty
+                                  if (_selectedMarkerResources != null && (_selectedMarkerResources ?? []).isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 10),
+                                      child: Column(
+                                        children: [
+                                          // "Needed Items:" label with underline
+                                          Text(
+                                            'Needed Items:',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              decoration: TextDecoration.underline,
+                                            ),
+                                          ),
+                                          // List of resources
+                                          ...(_selectedMarkerResources ?? []).map((resource) => Text(
+                                            resource,
+                                            style: TextStyle(color: Colors.grey[800]),
+                                          )).toList(),
+                                        ],
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+
+                    ],
                   ),
-              ],
-      ),
+                );
+              },
+            ),
           ),
         ],
       ),
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           FloatingActionButton(
             onPressed: _zoomIn,
             tooltip: 'Zoom In',
             backgroundColor: Color(0xFF333333),
             heroTag: 'zoomIn',
-            child: Icon(Icons.zoom_in, color: Color(0xFFFFFFFF)),
+            child: Icon(Icons.zoom_in, color: Colors.white),
           ),
           SizedBox(height: 10),
           FloatingActionButton(
@@ -186,7 +249,7 @@ class _MapScreenState extends State<MapScreen> {
             tooltip: 'Zoom Out',
             backgroundColor: Color(0xFF333333),
             heroTag: 'zoomOut',
-            child: Icon(Icons.zoom_out, color: Color(0xFFFFFFFF)),
+            child: Icon(Icons.zoom_out, color: Colors.white),
           ),
           SizedBox(height: 10),
           FloatingActionButton(
@@ -194,13 +257,12 @@ class _MapScreenState extends State<MapScreen> {
             tooltip: 'Get Location',
             backgroundColor: Color(0xFF333333),
             heroTag: 'getLocation',
-            child: Icon(Icons.my_location, color: Color(0xFFFFFFFF)),
+            child: Icon(Icons.my_location, color: Colors.white),
           ),
         ],
       ),
     );
   }
-
 
   void _zoomIn() {
     setState(() {
@@ -223,6 +285,7 @@ class _MapScreenState extends State<MapScreen> {
     if (location != null) {
       setState(() {
         _center = location;
+        _initialCenter = location;
         _mapController.move(_center, _currentZoom);
       });
 
@@ -253,6 +316,9 @@ class _MapScreenState extends State<MapScreen> {
       Map<String, List<LatLng>> coords = {};
       (events, coords) = await nwsService.getAlertsForCities(nearbyCities);
 
+      nearbyDisasters.clear();
+      disasterCircles.clear();
+
       var index = 0;
       var event = "";
       for (var areaCoords in coords.values){
@@ -271,6 +337,11 @@ class _MapScreenState extends State<MapScreen> {
           borderStrokeWidth: 2.0,
           radius: radius,
         ));
+        double distance = Distance().as(LengthUnit.Kilometer, _initialCenter, center);
+        if (distance <= 10.0) {
+          nearbyDisasters.add(center);  // Add to nearby disaster list
+        }
+
 
         // Add an invisible Marker at the same location to detect taps
         // _foodBankMarkers.add(Marker(
@@ -311,6 +382,8 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+
+
   Marker _createMarker(NamedMarker namedMarker) {
     return Marker(
       point: namedMarker.point,
@@ -325,9 +398,16 @@ class _MapScreenState extends State<MapScreen> {
                     namedMarker.name; // Display the actual name
                 _selectedMarkerDistance = Distance().as(
                   LengthUnit.Kilometer,
-                  _center,
+                  _initialCenter,
                   namedMarker.point,
                 );
+                if (namedMarker.name.contains("Disaster")){
+                  String disasterGroup = getDisasterGroup(namedMarker.name.substring(10));
+                  _selectedMarkerResources = disasterResources[disasterGroup] ?? [];
+                }
+                else{
+                  _selectedMarkerResources = [];
+                }
               });
               print('Tapped on ${namedMarker.name} at ${namedMarker.point}');
             },

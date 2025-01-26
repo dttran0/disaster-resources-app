@@ -1,0 +1,2 @@
+C:/Users/falak/Downloads/Repos/disaster-resources-app/android/app/.cxx/RelWithDebInfo/65541w1p/armeabi-v7a/CMakeFiles/edit_cache.dir
+C:/Users/falak/Downloads/Repos/disaster-resources-app/android/app/.cxx/RelWithDebInfo/65541w1p/armeabi-v7a/CMakeFiles/rebuild_cache.dir
