@@ -127,7 +127,8 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   late final MapController _mapController;
-  LatLng _center = LatLng(37.781774, -122.432002); // Initial center (LA, CA)
+  LatLng _center =  LatLng(34.0549, -118.2426); // Initial center (LA, CA)
+  LatLng _initialCenter = LatLng(34.0549, -118.2426);
   double _currentZoom = 13.0; // Initial zoom level
   //List<CircleMarker> _foodBankMarkers = []; // List of CircleMarkers
   //List<CircleMarker> disasterMarkers = [];
@@ -141,6 +142,8 @@ class _MapScreenState extends State<MapScreen> {
   String? _selectedMarkerName;
   double? _selectedMarkerDistance;
   String? _selectedMarkerAddress;
+  List<String>? _selectedMarkerResources;
+  List<LatLng> nearbyDisasters = [];
 
   @override
   void initState() {
@@ -148,7 +151,7 @@ class _MapScreenState extends State<MapScreen> {
     _mapController = MapController();
   }
 
-  bool _showAffectedAreaWidget = false; // State variable to control widget visibility
+  //bool _showAffectedAreaWidget = false; // State variable to control widget visibility
 
   @override
   Widget build(BuildContext context) {
@@ -167,21 +170,22 @@ class _MapScreenState extends State<MapScreen> {
       body: Column(
         children: [
           // Affected Area Widget at the top
-          if (_showAffectedAreaWidget)
-            AffectedAreaWidget(
-              onTap: () {
-                // Navigate to ResourceListScreen
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ResourceListScreen(
-                      latitude: _center.latitude,
-                      longitude: _center.longitude,
-                    ),
+          //if (_showAffectedAreaWidget)
+          AffectedAreaWidget(
+            isSafe: nearbyDisasters.isEmpty,
+            onTap: () {
+              // Navigate to ResourceListScreen
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ResourceListScreen(
+                    latitude: _initialCenter.latitude,
+                    longitude: _initialCenter.longitude,
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            },
+          ),
           Expanded(
             child: Stack(
               children: [
@@ -353,6 +357,9 @@ class _MapScreenState extends State<MapScreen> {
       Map<String, List<LatLng>> coords = {};
       (events, coords) = await nwsService.getAlertsForCities(nearbyCities);
       bool isUserNearDisaster = false;
+
+      nearbyDisasters.clear();
+      disasterCircles.clear();
       var index = 0;
       var event = "";
       for (var areaCoords in coords.values){
@@ -391,6 +398,10 @@ class _MapScreenState extends State<MapScreen> {
         //     ),
         //   ),
         // ));
+        double distance = Distance().as(LengthUnit.Kilometer, _initialCenter, center);
+        if (distance <= 10.0) {
+          nearbyDisasters.add(center);  // Add to nearby disaster list
+        }
         NamedMarker disasterMarker = NamedMarker(
           name: "Disaster: $event",  // Set the disaster event name
           point: center, // Set the center of the disaster area
@@ -401,19 +412,19 @@ class _MapScreenState extends State<MapScreen> {
         _foodBankMarkers.add(_createMarker(disasterMarker));
 
         // Check if user is near this disaster
-        final Distance distance = Distance();
-        double distanceToDisaster = distance.as(LengthUnit.Kilometer, location, center);
-
-        if (distanceToDisaster <= 30.0) {
-          isUserNearDisaster = true;
-        }
+        // final Distance distance = Distance();
+        // double distanceToDisaster = distance.as(LengthUnit.Kilometer, location, center);
+        //
+        // if (distanceToDisaster <= 30.0) {
+        //   isUserNearDisaster = true;
+        // }
         index += 1;
 
       }
       // Update state with proximity info
-      setState(() {
-        _showAffectedAreaWidget = isUserNearDisaster;
-      });
+      // setState(() {
+      //   _showAffectedAreaWidget = isUserNearDisaster;
+      // });
 
       // Update food banks markers
       // setState(() {
@@ -437,7 +448,7 @@ class _MapScreenState extends State<MapScreen> {
                     namedMarker.name; // Display the actual name
                 _selectedMarkerDistance = Distance().as(
                   LengthUnit.Kilometer,
-                  _center,
+                  _initialCenter,
                   namedMarker.point,
                 );
               });
