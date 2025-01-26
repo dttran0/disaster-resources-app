@@ -50,64 +50,65 @@ class _MapScreenState extends State<MapScreen> {
             options: MapOptions(
               center: _center,
               zoom: _currentZoom,
-                onTap: (_, __) {
+              onTap: (_, __) {
+                setState(() {
+                  _selectedMarkerLocation = null;
+                });
+              },
+              onPositionChanged: (position, hasGesture) {
+                if (hasGesture && position.center != null) {
                   setState(() {
-                    _selectedMarkerLocation = null;
+                    _center = position.center ?? _center;
                   });
-                },
-                onPositionChanged: (position, hasGesture) {
-                  if (hasGesture && position.center != null) {
-                    setState(() {
-                      _center = position.center ?? _center;
-                    });
-                  }
                 }
+              }
             ),
-          children: [
-            TileLayer(
-              urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-              subdomains: ['a', 'b', 'c'],
+            children: [
+              TileLayer(
+                urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                subdomains: ['a', 'b', 'c'],
             ),
             // Use CircleMarkerLayerPlugin to display CircleMarkers
-            MarkerLayer(
-              markers: [..._foodBankMarkers, ..._hospitalMarkers]
-            ),
+
             CircleLayer(
                 circles: disasterCircles,
             ),
+              MarkerLayer(
+                  markers: [..._foodBankMarkers, ..._hospitalMarkers]
+              ),
           ],
         ),
-          if (_selectedMarkerLocation != null)
-            Positioned(
-              bottom: 100,
-              left: MediaQuery.of(context).size.width * 0.2,
-              child: Container(
-                padding: EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 5,
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      _selectedMarkerName ?? '',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      '${_selectedMarkerDistance?.toStringAsFixed(2)} km away',
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
+        if (_selectedMarkerLocation != null)
+          Positioned(
+            bottom: 100,
+            left: MediaQuery.of(context).size.width * 0.2,
+            child: Container(
+              padding: EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 5,
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _selectedMarkerName ?? '',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    '${_selectedMarkerDistance?.toStringAsFixed(2)} km away',
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                ],
               ),
             ),
+          ),
         ],
       ),
       floatingActionButton: Column(
@@ -172,6 +173,11 @@ class _MapScreenState extends State<MapScreen> {
         location.longitude,
       );
 
+      setState(() {
+        _foodBankMarkers = foodBanks.map((marker) => _createMarker(marker)).toList();
+        _hospitalMarkers = hospitals.map((marker) => _createMarker(marker)).toList(); // Update the CircleMarkers list
+      });
+
       final findCitiesService = FindCitiesService();
       final nwsService = NWSService();
 
@@ -203,25 +209,35 @@ class _MapScreenState extends State<MapScreen> {
           radius: radius,
         ));
 
+        // Add an invisible Marker at the same location to detect taps
+        _foodBankMarkers.add(Marker(
+          point: center,
+          width: 40, // Use a small size for the invisible marker
+          height: 40,
+          builder: (ctx) => GestureDetector(
+            onTap: () {
+              setState(() {
+                _selectedMarkerLocation = center;
+                _selectedMarkerName = event; // Show the disaster event name
+                _selectedMarkerDistance = Distance().as(LengthUnit.Kilometer, _center, center);
+              });
+            },
+            child: Container(
+              width: 0, // Make the marker invisible
+              height: 0, // Make the marker invisible
+            ),
+          ),
+        ));
+
         index += 1;
       }
 
 
       // Update food banks markers
-      setState(() {
-        _foodBankMarkers = foodBanks.map((marker) => _createMarker(marker)).toList();
-        _hospitalMarkers = hospitals.map((marker) => _createMarker(marker)).toList(); // Update the CircleMarkers list
-
-        // Add disaster markers
-        // disasterPolygons = disasterPolygonsMap.entries.map((entry) {
-        //   return Polygon(
-        //     points: entry.value, // Use the list of LatLng points
-        //     color: Colors.red.withOpacity(0.5),
-        //     borderColor: Colors.red,
-        //     borderStrokeWidth: 3.0,
-        //   );
-        // }).toList();
-      });
+      // setState(() {
+      //   _foodBankMarkers = foodBanks.map((marker) => _createMarker(marker)).toList();
+      //   _hospitalMarkers = hospitals.map((marker) => _createMarker(marker)).toList(); // Update the CircleMarkers list
+      //});
     }
   }
 
@@ -243,6 +259,7 @@ class _MapScreenState extends State<MapScreen> {
                   namedMarker.point,
                 );
               });
+              print('Tapped on ${namedMarker.name} at ${namedMarker.point}');
             },
             child: Icon(
               Icons.location_on,

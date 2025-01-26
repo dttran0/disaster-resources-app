@@ -10,7 +10,7 @@ class FoodBankService {
 
   Future<List<NamedMarker>> fetchNearbyFoodBanks(double latitude, double longitude) async {
     final String url =
-        'https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=$latitude,$longitude&radius=5000&type=food_bank&key=$apiKey';
+        'https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=$latitude,$longitude&radius=5000&type=church&key=$apiKey';
 
     try {
       final response = await http.get(Uri.parse(url));
