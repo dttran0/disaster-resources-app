@@ -22,7 +22,8 @@ class FoodBankService {
           double lat = foodBank['geometry']['location']['lat'];
           double lng = foodBank['geometry']['location']['lng'];
           String name = foodBank['name'];
-          return NamedMarker(point: LatLng(lat, lng), name: name);
+          String address = foodBank['vicinity'];
+          return NamedMarker(point: LatLng(lat, lng), name: name, address: address);
         }).toList();
       } else {
         throw Exception('Failed to load food banks');

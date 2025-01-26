@@ -22,7 +22,8 @@ class HospitalService {
           double lat = hospital['geometry']['location']['lat'];
           double lng = hospital['geometry']['location']['lng'];
           String name = hospital['name'];
-          return NamedMarker(point: LatLng(lat, lng), name: name);
+          String address = hospital['vicinity'];
+          return NamedMarker(point: LatLng(lat, lng), name: name, address: address);
         }).toList();
       } else {
         throw Exception('Failed to load hospitals');

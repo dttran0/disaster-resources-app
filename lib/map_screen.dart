@@ -3,6 +3,10 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'user_location.dart'; // Import your location service
 import 'food_bank.dart'; // Import the FoodBankService
+import 'hospital.dart';
+import 'named_marker.dart';
+import 'resourcelist.dart'; // Import ResourceListScreen
+import 'affectedareawidget.dart';
 //import 'package:flutter_map_circle_marker/flutter_map_circle_marker.dart'; // Import the circle marker plugin
 import 'services/nws_service.dart';
 import 'services/find_cities_service.dart'; // Ensure this service is
@@ -14,9 +18,10 @@ class MapScreen extends StatefulWidget {
   _MapScreenState createState() => _MapScreenState();
 }
 
+
 class _MapScreenState extends State<MapScreen> {
   late final MapController _mapController;
-  LatLng _center = LatLng(34.0549, 118.2426); // Initial center (LA, CA)
+  LatLng _center = LatLng(34.0549, -118.2426); // Initial center (LA, CA)
   double _currentZoom = 13.0; // Initial zoom level
   //List<CircleMarker> _foodBankMarkers = []; // List of CircleMarkers
   //List<CircleMarker> disasterMarkers = [];
@@ -29,6 +34,8 @@ class _MapScreenState extends State<MapScreen> {
   LatLng? _selectedMarkerLocation;
   String? _selectedMarkerName;
   double? _selectedMarkerDistance;
+  String? _selectedMarkerAddress;
+
 
   @override
   void initState() {
@@ -36,78 +43,130 @@ class _MapScreenState extends State<MapScreen> {
     _mapController = MapController();
   }
 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Map View'),
-        backgroundColor: Color(0xFF2F8D46),
-      ),
-      body: Stack(
-        children: [
-          FlutterMap(
-            mapController: _mapController,
-            options: MapOptions(
-              center: _center,
-              zoom: _currentZoom,
-              onTap: (_, __) {
-                setState(() {
-                  _selectedMarkerLocation = null;
-                });
-              },
-              onPositionChanged: (position, hasGesture) {
-                if (hasGesture && position.center != null) {
-                  setState(() {
-                    _center = position.center ?? _center;
-                  });
-                }
-              }
-            ),
-            children: [
-              TileLayer(
-                urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                subdomains: ['a', 'b', 'c'],
-            ),
-            // Use CircleMarkerLayerPlugin to display CircleMarkers
-
-            CircleLayer(
-                circles: disasterCircles,
-            ),
-              MarkerLayer(
-                  markers: [..._foodBankMarkers, ..._hospitalMarkers]
-              ),
-          ],
+        title: Text(
+          'BeaconAid',
+          style: TextStyle(
+            color: Color(0xFFFFFFFF),
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        if (_selectedMarkerLocation != null)
-          Positioned(
-            bottom: 100,
-            left: MediaQuery.of(context).size.width * 0.2,
-            child: Container(
-              padding: EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 5,
+        centerTitle: true,
+        backgroundColor: Color(0xFF333333),
+      ),
+      body: Column(
+        children: [
+          // Add the AffectedAreaWidget
+          AffectedAreaWidget(
+            onTap: () {
+              // Navigate to ResourceListScreen
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ResourceListScreen(
+                    latitude: _center.latitude,
+                    longitude: _center.longitude,
                   ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _selectedMarkerName ?? '',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              );
+
+            },
+          ),
+          // Expanded widget for the map
+          Expanded(
+            child: Column(
+              children: [
+                FlutterMap(
+                  mapController: _mapController,
+                  options: MapOptions(
+                    center: _center,
+                    zoom: _currentZoom,
+                    onTap: (_, __) {
+                      setState(() {
+                        _selectedMarkerLocation = null; // Dismiss the info window
+                      });
+                    },
                   ),
-                  Text(
-                    '${_selectedMarkerDistance?.toStringAsFixed(2)} km away',
-                    style: TextStyle(color: Colors.grey[600]),
+                  children: [
+                    TileLayer(
+                      urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                      subdomains: ['a', 'b', 'c'],
+                    ),
+                    MarkerLayer(
+                      markers: [..._foodBankMarkers, ..._hospitalMarkers],
+                    ),
+                  ],
+                ),
+                FlutterMap(
+                  mapController: _mapController,
+                  options: MapOptions(
+                      center: _center,
+                      zoom: _currentZoom,
+                      onTap: (_, __) {
+                        setState(() {
+                          _selectedMarkerLocation = null;
+                        });
+                      },
+                      onPositionChanged: (position, hasGesture) {
+                        if (hasGesture && position.center != null) {
+                          setState(() {
+                            _center = position.center ?? _center;
+                          });
+                        }
+                      }
                   ),
-                ],
-              ),
-            ),
+                  children: [
+                    TileLayer(
+                      urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                      subdomains: ['a', 'b', 'c'],
+                    ),
+                    // Use CircleMarkerLayerPlugin to display CircleMarkers
+
+                    CircleLayer(
+                      circles: disasterCircles,
+                    ),
+                    MarkerLayer(
+                        markers: [..._foodBankMarkers, ..._hospitalMarkers]
+                    ),
+                  ],
+                ),
+                if (_selectedMarkerLocation != null)
+                  Positioned(
+                    bottom: 100,
+                    left: MediaQuery.of(context).size.width * 0.2,
+                    child: Container(
+                      padding: EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 5,
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _selectedMarkerName ?? '',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            '${_selectedMarkerDistance?.toStringAsFixed(2)} km away',
+                            style: TextStyle(color: Colors.grey[600]),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+      ),
           ),
         ],
       ),
@@ -117,35 +176,39 @@ class _MapScreenState extends State<MapScreen> {
           FloatingActionButton(
             onPressed: _zoomIn,
             tooltip: 'Zoom In',
-            backgroundColor: Color(0xFF2F8D46),
-            child: Icon(Icons.zoom_in, color: Colors.white),
+            backgroundColor: Color(0xFF333333),
+            heroTag: 'zoomIn',
+            child: Icon(Icons.zoom_in, color: Color(0xFFFFFFFF)),
           ),
           SizedBox(height: 10),
           FloatingActionButton(
             onPressed: _zoomOut,
             tooltip: 'Zoom Out',
-            backgroundColor: Color(0xFF2F8D46),
-            child: Icon(Icons.zoom_out, color: Colors.white),
+            backgroundColor: Color(0xFF333333),
+            heroTag: 'zoomOut',
+            child: Icon(Icons.zoom_out, color: Color(0xFFFFFFFF)),
           ),
           SizedBox(height: 10),
           FloatingActionButton(
             onPressed: _getCurrentLocation,
             tooltip: 'Get Location',
-            backgroundColor: Color(0xFF2F8D46),
-            child: Icon(Icons.my_location, color: Colors.white),
+            backgroundColor: Color(0xFF333333),
+            heroTag: 'getLocation',
+            child: Icon(Icons.my_location, color: Color(0xFFFFFFFF)),
           ),
         ],
       ),
     );
   }
 
-  // Zoom In and Out features
+
   void _zoomIn() {
     setState(() {
       _currentZoom = (_currentZoom + 1).clamp(0.0, 18.0);
       _mapController.move(_center, _currentZoom);
     });
   }
+
 
   void _zoomOut() {
     setState(() {
@@ -154,7 +217,7 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
-  // Get current location and update map
+
   Future<void> _getCurrentLocation() async {
     var location = await LocationService().getLocation();
     if (location != null) {
@@ -231,6 +294,7 @@ class _MapScreenState extends State<MapScreen> {
         NamedMarker disasterMarker = NamedMarker(
           name: "Disaster: $event",  // Set the disaster event name
           point: center, // Set the center of the disaster area
+          address: "",
         );
 
         // Add the invisible marker to the _foodBankMarkers list
