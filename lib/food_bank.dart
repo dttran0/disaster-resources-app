@@ -3,12 +3,12 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'named_marker.dart';
 
 class FoodBankService {
   final String apiKey = 'AIzaSyA4BXNYwXIDADbWBsmVQmikBlIFCvXzHik';
 
-  // Fetch nearby food banks from Google Maps API
-  Future<List<CircleMarker>> fetchNearbyFoodBanks(double latitude, double longitude) async {
+  Future<List<NamedMarker>> fetchNearbyFoodBanks(double latitude, double longitude) async {
     final String url =
         'https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=$latitude,$longitude&radius=5000&type=food_bank&key=$apiKey';
 
@@ -18,26 +18,11 @@ class FoodBankService {
         final Map<String, dynamic> data = json.decode(response.body);
         List results = data['results'];
 
-        // Debugging: Print the results
-        print('Food bank API results: ${results.length}');
-        if (results.isNotEmpty) {
-          print('First food bank location: ${results.first['geometry']['location']}');
-        }
-
-        return results.map<CircleMarker>((foodBank) {
+        return results.map<NamedMarker>((foodBank) {
           double lat = foodBank['geometry']['location']['lat'];
           double lng = foodBank['geometry']['location']['lng'];
           String name = foodBank['name'];
-          String address = foodBank['vicinity'];
-
-          // Returning CircleMarker instead of Marker
-          return CircleMarker(
-            point: LatLng(lat, lng),
-            radius: 8.0, // Adjust the size of the circle
-            color: Colors.blue.withOpacity(0.6),
-            borderColor: Colors.blue,
-            borderStrokeWidth: 2,
-          );
+          return NamedMarker(point: LatLng(lat, lng), name: name);
         }).toList();
       } else {
         throw Exception('Failed to load food banks');

@@ -37,7 +37,7 @@ dependencies:
   #google_maps_flutter:
   #permission_handler:
   http:
-  flutter_map:
+  flutter_map: ^5.0.0
   latlong2:
   geolocator:
   #flutter_map_circle_marker:
