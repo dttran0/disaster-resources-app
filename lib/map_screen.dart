@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -6,8 +7,119 @@ import 'food_bank.dart'; // Import the FoodBankService
 //import 'package:flutter_map_circle_marker/flutter_map_circle_marker.dart'; // Import the circle marker plugin
 import 'services/nws_service.dart';
 import 'services/find_cities_service.dart'; // Ensure this service is
+import 'services/firebase_service.dart';
 import 'hospital.dart';
 import 'named_marker.dart';
+
+//volunteer UI
+class VolunteerPage extends StatefulWidget {
+  @override
+  _VolunteerPageState createState() => _VolunteerPageState();
+}
+
+class _VolunteerPageState extends State<VolunteerPage> {
+  String? _selectedOption;
+  String? _name;
+  int _userPoints = 0;
+
+  final FirebaseService _firebaseService = FirebaseService();
+  Future<void> _fetchUserPoints() async {
+    if (_name != null && _name!.isNotEmpty) {
+      final points = await _firebaseService.getUserPoints(_name!);
+      setState(() {
+        _userPoints = points;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Volunteer Options'),
+        backgroundColor: Color(0xFF2F8D46),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Enter your name
+            Text(
+              'Enter your name:',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 10),
+            TextFormField(
+              onChanged: (value) async {
+                setState(() {
+                  _name = value;
+                });
+                await _fetchUserPoints(); // Fetch points when the name is entered
+              },
+              decoration: InputDecoration(
+                border: OutlineInputBorder(),
+                labelText: 'Your Name',
+              ),
+            ),
+            SizedBox(height: 20),
+            Text(
+              'Choose how you want to volunteer:',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 20),
+            DropdownButtonFormField<String>(
+              value: _selectedOption,
+              items: ['Food', 'Water', 'Clothing']
+                  .map((option) => DropdownMenuItem(
+                        value: option,
+                        child: Text(option),
+                      ))
+                  .toList(),
+              onChanged: (value) {
+                setState(() {
+                  _selectedOption = value;
+                });
+              },
+              decoration: InputDecoration(
+                border: OutlineInputBorder(),
+                labelText: 'Select an option',
+              ),
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () async {
+                if (_name != null && _selectedOption != null) {
+                  await _firebaseService.updateUserPoints(_name!, 10); // Add points
+                  final updatedPoints = await _firebaseService.getUserPoints(_name!);
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                          'Thank you, $_name! You now have $updatedPoints points.'),
+                    ),
+                  );
+
+                  setState(() {
+                    _userPoints = updatedPoints; // Update the points in the UI
+                  });
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Please enter your name and select an option.')),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF2F8D46),
+              ),
+              child: Text('Submit'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class MapScreen extends StatefulWidget {
   @override
@@ -105,6 +217,20 @@ class _MapScreenState extends State<MapScreen> {
                       '${_selectedMarkerDistance?.toStringAsFixed(2)} km away',
                       style: TextStyle(color: Colors.grey[600]),
                     ),
+                    if (_selectedMarkerName != null &&
+                        _selectedMarkerName!.contains('Disaster'))
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => VolunteerPage()),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Color(0xFF2F8D46),
+                        ),
+                        child: Text('Volunteer'),
+                      ),
                   ],
                 ),
               ),
