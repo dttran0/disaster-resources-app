@@ -204,7 +204,7 @@ class _MapScreenState extends State<MapScreen> {
 
   void _zoomIn() {
     setState(() {
-      _currentZoom = (_currentZoom + 1).clamp(0.0, 18.0);
+      _currentZoom = (_currentZoom + 1).clamp(1.0, 18.0);
       _mapController.move(_center, _currentZoom);
     });
   }
@@ -212,7 +212,7 @@ class _MapScreenState extends State<MapScreen> {
 
   void _zoomOut() {
     setState(() {
-      _currentZoom = (_currentZoom - 1).clamp(0.0, 18.0);
+      _currentZoom = (_currentZoom - 1).clamp(1.0, 18.0);
       _mapController.move(_center, _currentZoom);
     });
   }
@@ -359,6 +359,11 @@ class _MapScreenState extends State<MapScreen> {
   // Calculate the radius (distance from the center to one of the corners)
   double _calculateRadius(LatLng center, LatLng corner) {
     final Distance distance = Distance();
-    return distance.as(LengthUnit.Mile, center, corner);
+    try {
+      return distance.as(LengthUnit.Mile, center, corner).abs();
+    } catch (e) {
+      print('Error in radius calculation: $e');
+      return 0.0; // Default to zero if there's an error
+    }
   }
 }

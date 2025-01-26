@@ -33,7 +33,7 @@ dependencies:
   http:
 
   mockito: ^5.4.5
-  test: ^1.25.14
+  test: 1.25.8
 
 
   # The following adds the Cupertino Icons font to your application.
