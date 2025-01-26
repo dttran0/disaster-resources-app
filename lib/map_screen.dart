@@ -3,9 +3,11 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'user_location.dart'; // Import your location service
 import 'food_bank.dart'; // Import the FoodBankService
+//import 'package:flutter_map_circle_marker/flutter_map_circle_marker.dart'; // Import the circle marker plugin
+import 'services/nws_service.dart';
+import 'services/find_cities_service.dart'; // Ensure this service is
 import 'hospital.dart';
 import 'named_marker.dart';
-
 
 class MapScreen extends StatefulWidget {
   @override
@@ -16,6 +18,10 @@ class _MapScreenState extends State<MapScreen> {
   late final MapController _mapController;
   LatLng _center = LatLng(34.0549, 118.2426); // Initial center (LA, CA)
   double _currentZoom = 13.0; // Initial zoom level
+  //List<CircleMarker> _foodBankMarkers = []; // List of CircleMarkers
+  //List<CircleMarker> disasterMarkers = [];
+  //List<Polygon> disasterPolygons = [];  // List to store polygons
+  List<CircleMarker> disasterCircles = [];
   List<Marker> _foodBankMarkers = []; // List of Markers for food banks
   List<Marker> _hospitalMarkers = []; // List of Markers for hospitals
 
@@ -42,21 +48,33 @@ class _MapScreenState extends State<MapScreen> {
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
-              center: _center,
-              zoom: _currentZoom,
-              onTap: (_, __) {
-                setState(() {
-                  _selectedMarkerLocation = null; // Dismiss the info window
-                });
-              },
+                center: _center,
+                zoom: _currentZoom,
+                onTap: (_, __) {
+                  setState(() {
+                    _selectedMarkerLocation = null;
+                  });
+                },
+                onPositionChanged: (position, hasGesture) {
+                  if (hasGesture && position.center != null) {
+                    setState(() {
+                      _center = position.center ?? _center;
+                    });
+                  }
+                }
             ),
             children: [
               TileLayer(
                 urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
                 subdomains: ['a', 'b', 'c'],
               ),
+              // Use CircleMarkerLayerPlugin to display CircleMarkers
+
+              CircleLayer(
+                circles: disasterCircles,
+              ),
               MarkerLayer(
-                markers: [..._foodBankMarkers, ..._hospitalMarkers],
+                  markers: [..._foodBankMarkers, ..._hospitalMarkers]
               ),
             ],
           ),
@@ -121,6 +139,7 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  // Zoom In and Out features
   void _zoomIn() {
     setState(() {
       _currentZoom = (_currentZoom + 1).clamp(0.0, 18.0);
@@ -135,6 +154,7 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
+  // Get current location and update map
   Future<void> _getCurrentLocation() async {
     var location = await LocationService().getLocation();
     if (location != null) {
@@ -143,6 +163,7 @@ class _MapScreenState extends State<MapScreen> {
         _mapController.move(_center, _currentZoom);
       });
 
+      // Fetch food banks nearby and get CircleMarkers
       var foodBanks = await FoodBankService().fetchNearbyFoodBanks(
         location.latitude,
         location.longitude,
@@ -154,36 +175,126 @@ class _MapScreenState extends State<MapScreen> {
 
       setState(() {
         _foodBankMarkers = foodBanks.map((marker) => _createMarker(marker)).toList();
-        _hospitalMarkers = hospitals.map((marker) => _createMarker(marker)).toList();
+        _hospitalMarkers = hospitals.map((marker) => _createMarker(marker)).toList(); // Update the CircleMarkers list
       });
+
+      final findCitiesService = FindCitiesService();
+      final nwsService = NWSService();
+
+      // Get cities within a 5-mile radius of the given lat/lon
+      List<String> nearbyCities = await findCitiesService.getCitiesWithin5Miles(
+          location.latitude, location.longitude);
+
+      // Now, fetch alerts for the list of cities
+      List<String> events = [];
+      Map<String, List<LatLng>> coords = {};
+      (events, coords) = await nwsService.getAlertsForCities(nearbyCities);
+
+      var index = 0;
+      var event = "";
+      for (var areaCoords in coords.values){
+        event = events[index];
+        print('$event Affected Area Coordinates: $areaCoords');
+
+        LatLng center = _calculateCenter(areaCoords);
+        print('Center Coordinates: $center');
+        // Calculate the radius (distance from center to one of the corners)
+        double radius = _calculateRadius(center, areaCoords[0]); // Distance to the first corner
+        print('Radius $radius');
+        disasterCircles.add(CircleMarker(
+          point: center,
+          color: Colors.red.withOpacity(0.5),
+          borderColor: Colors.red,
+          borderStrokeWidth: 2.0,
+          radius: radius,
+        ));
+
+        // Add an invisible Marker at the same location to detect taps
+        // _foodBankMarkers.add(Marker(
+        //   point: center,
+        //   width: 40, // Use a small size for the invisible marker
+        //   height: 40,
+        //   builder: (ctx) => GestureDetector(
+        //     onTap: () {
+        //       setState(() {
+        //         _selectedMarkerLocation = center;
+        //         _selectedMarkerName = event; // Show the disaster event name
+        //         _selectedMarkerDistance = Distance().as(LengthUnit.Kilometer, _center, center);
+        //       });
+        //     },
+        //     child: Container(
+        //       width: 0, // Make the marker invisible
+        //       height: 0, // Make the marker invisible
+        //     ),
+        //   ),
+        // ));
+        NamedMarker disasterMarker = NamedMarker(
+          name: "Disaster: $event",  // Set the disaster event name
+          point: center, // Set the center of the disaster area
+        );
+
+        // Add the invisible marker to the _foodBankMarkers list
+        _foodBankMarkers.add(_createMarker(disasterMarker));
+        index += 1;
+      }
+
+
+      // Update food banks markers
+      // setState(() {
+      //   _foodBankMarkers = foodBanks.map((marker) => _createMarker(marker)).toList();
+      //   _hospitalMarkers = hospitals.map((marker) => _createMarker(marker)).toList(); // Update the CircleMarkers list
+      //});
     }
   }
-
 
   Marker _createMarker(NamedMarker namedMarker) {
     return Marker(
       point: namedMarker.point,
       width: 40,
       height: 40,
-      builder: (ctx) => GestureDetector(
-        onTap: () {
-          setState(() {
-            _selectedMarkerLocation = namedMarker.point;
-            _selectedMarkerName = namedMarker.name; // Display the actual name
-            _selectedMarkerDistance = Distance().as(
-              LengthUnit.Kilometer,
-              _center,
-              namedMarker.point,
-            );
-          });
-        },
-        child: Icon(
-          Icons.location_on,
-          color: namedMarker.name.contains('Hospital') ? Colors.red : Colors.blue,
-          size: 30,
-        ),
-      ),
+      builder: (ctx) =>
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _selectedMarkerLocation = namedMarker.point;
+                _selectedMarkerName =
+                    namedMarker.name; // Display the actual name
+                _selectedMarkerDistance = Distance().as(
+                  LengthUnit.Kilometer,
+                  _center,
+                  namedMarker.point,
+                );
+              });
+              print('Tapped on ${namedMarker.name} at ${namedMarker.point}');
+            },
+            child: Icon(
+              Icons.location_on,
+              color: namedMarker.name.contains('Hospital') ? Colors.red : namedMarker.name.contains('Disaster') ? Colors.orange :
+              Colors
+                  .blue,
+              size: 30,
+            ),
+          ),
     );
   }
 
+
+
+  LatLng _calculateCenter(List<LatLng> coords) {
+    double latSum = 0.0;
+    double lonSum = 0.0;
+
+    for (var coord in coords) {
+      latSum += coord.latitude;
+      lonSum += coord.longitude;
+    }
+
+    return LatLng(latSum / coords.length, lonSum / coords.length);
+  }
+
+  // Calculate the radius (distance from the center to one of the corners)
+  double _calculateRadius(LatLng center, LatLng corner) {
+    final Distance distance = Distance();
+    return distance.as(LengthUnit.Mile, center, corner);
+  }
 }

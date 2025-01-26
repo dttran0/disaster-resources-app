@@ -155,6 +155,3 @@ class LocationService {
     return LatLng(position.latitude, position.longitude);
   }
 }
-
-
-
