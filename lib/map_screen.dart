@@ -9,6 +9,91 @@ import 'services/find_cities_service.dart'; // Ensure this service is
 import 'hospital.dart';
 import 'named_marker.dart';
 
+
+//volunteer UI
+class VolunteerPage extends StatefulWidget {
+  @override
+  _VolunteerPageState createState() => _VolunteerPageState();
+}
+
+class _VolunteerPageState extends State<VolunteerPage> {
+  String? _selectedOption;
+  String? _name;
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Volunteer Options'),
+        backgroundColor: Color(0xFF2F8D46),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Enter your name
+            Text(
+              'Enter your name:',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 10),
+            TextFormField(
+              onChanged: (value) {
+                setState(() {
+                  _name = value;
+                });
+              },
+              decoration: InputDecoration(
+                border: OutlineInputBorder(),
+                labelText: 'Your Name',
+              ),
+            ),
+            SizedBox(height: 20),
+            Text(
+              'Choose how you want to volunteer:',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 20),
+            DropdownButtonFormField<String>(
+              value: _selectedOption,
+              items: ['Food', 'Water', 'Clothing']
+                  .map((option) => DropdownMenuItem(
+                value: option,
+                child: Text(option),
+              ))
+                  .toList(),
+              onChanged: (value) {
+                setState(() {
+                  _selectedOption = value;
+                });
+              },
+              decoration: InputDecoration(
+                border: OutlineInputBorder(),
+                labelText: 'Select an option',
+              ),
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                if (_selectedOption != null) {
+                  // Handle the selected option here
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('You selected $_selectedOption')),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF2F8D46),
+              ),
+              child: Text('Submit'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class MapScreen extends StatefulWidget {
   @override
   _MapScreenState createState() => _MapScreenState();
@@ -105,6 +190,20 @@ class _MapScreenState extends State<MapScreen> {
                     '${_selectedMarkerDistance?.toStringAsFixed(2)} km away',
                     style: TextStyle(color: Colors.grey[600]),
                   ),
+                  if (_selectedMarkerName != null &&
+                      _selectedMarkerName!.contains('Disaster'))
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => VolunteerPage()),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(0xFF2F8D46),
+                      ),
+                      child: Text('Volunteer'),
+                    ),
                 ],
               ),
             ),
