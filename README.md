@@ -5,6 +5,6 @@ BeaconAid uses Flutter’s geolocation features to pinpoint a user’s location.
 
 ## Installation
 
-[Download Flutter environments]([https://docs.flutter.dev/get-started/install])
+[Download Flutter environments](https://docs.flutter.dev/get-started/install)
 
-[Download Android studio]([https://developer.android.com/studio])
+[Download Android studio](https://developer.android.com/studio)
